@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GameZone</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <style>
+    body { font-family: Arial; text-align:center; background:#111; color:#fff; }
+    .box { margin:10px; padding:15px; border:1px solid #555; border-radius:10px; }
+    button { margin:5px; padding:10px; border:none; border-radius:8px; cursor:pointer; }
+    input, select { padding:8px; margin:5px; }
+  </style>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+</head>
+
+<body>
+
+<h1>🎮 GameZone</h1>
+
+<!-- LOGIN -->
+<div id="loginBox" class="box">
+  <h3>Login</h3>
+  <input id="username" placeholder="Enter name">
+  <button onclick="login()">Enter</button>
+</div>
+
+<!-- MAIN MENU -->
+<div id="main" style="display:none;">
+  <h3>Welcome <span id="user"></span></h3>
+
+  <button onclick="showLobby()">🏠 Lobby</button>
+  <button onclick="showShop()">🛒 Shop</button>
+  <button onclick="showFriends()">👥 Friends</button>
+  <button onclick="showRanking()">🏆 Ranking</button>
+</div>
+
+<!-- LOBBY -->
+<div id="lobby" class="box" style="display:none;">
+  <h3>Lobby</h3>
+  <input id="roomInput" placeholder="Room name">
+  <button onclick="createRoom()">Create</button>
+  <button onclick="joinRoom()">Join</button>
+  <ul id="roomList"></ul>
+</div>
+
+<!-- RPG -->
+<div id="rpgGame" class="box" style="display:none;">
+  <h3>RPG</h3>
+
+  <select id="classSelect">
+    <option>Warrior</option>
+    <option>Mage</option>
+  </select>
+
+  <button onclick="startRPG()">Start</button>
+  <button onclick="fight()">⚔️ Fight</button>
+  <button onclick="earn()">💰 Earn</button>
+
+  <h4>Stats</h4>
+  ❤️ <span id="hpEl">0</span> |
+  💰 <span id="coinsEl">0</span> |
+  ⭐ <span id="xpEl">0</span> |
+  🆙 <span id="levelEl">1</span> |
+  🗡️ <span id="weaponEl">None</span> |
+  🏆 <span id="rankScoreEl">0</span>
+
+  <h4>Inventory</h4>
+  <ul id="inventoryList"></ul>
+
+  <input id="targetPlayer" placeholder="Player name">
+  <button onclick="attackPlayer()">⚔️ Attack Player</button>
+
+  <div id="story"></div>
+</div>
+
+<!-- SHOP -->
+<div id="shop" class="box" style="display:none;">
+  <h3>Shop</h3>
+  <button onclick="buyItem('Sword',50)">Buy Sword (50)</button>
+  <button onclick="equipWeapon()">Equip Sword</button>
+  <button onclick="buySkin('Red',30)">Red Skin (30)</button>
+</div>
+
+<!-- FRIENDS -->
+<div id="friendsBox" class="box" style="display:none;">
+  <h3>Friends</h3>
+  <input id="friendName" placeholder="Friend name">
+  <button onclick="sendRequest()">Add Friend</button>
+  <ul id="friendsList"></ul>
+</div>
+
+<!-- RANKING -->
+<div id="rankingBox" class="box" style="display:none;">
+  <h3>Ranking</h3>
+  <ul id="rankingList"></ul>
+</div>
+
+<script>
+
+/* 🔥 ADD YOUR FIREBASE CONFIG HERE */
+const firebaseConfig = {
+  apiKey: "AIzaSyAqD8g3pN7XyqYop-0J09fz6VGFtH7ynf0",
+  authDomain: "gamezone-31709.firebaseapp.com",
+  databaseURL: "https://gamezone-31709.firebaseio.com",
+  projectId: "gamezone-31709"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+/* VARIABLES */
+let currentUser="", rpgRoom="";
+let hp=100, coins=0, xp=0, level=1;
+let inventory=[], weapon="None", skins=[], currentSkin="Default";
+
+/* UI HELPERS */
+function hideAll(){
+  lobby.style.display="none";
+  rpgGame.style.display="none";
+  shop.style.display="none";
+  friendsBox.style.display="none";
+  rankingBox.style.display="none";
+}
+
+/* LOGIN */
+function login(){
+  currentUser=username.value;
+  user.innerText=currentUser;
+  loginBox.style.display="none";
+  main.style.display="block";
+  listenInvites();
+}
+
+/* LOBBY */
+function showLobby(){ hideAll(); lobby.style.display="block"; loadRooms(); }
+function createRoom(){
+  db.ref("rpgRooms/"+roomInput.value).set({});
+}
+function joinRoom(){ rpgRoom=roomInput.value; showRPG(); }
+function loadRooms(){
+  db.ref("rpgRooms").on("value",s=>{
+    roomList.innerHTML="";
+    Object.keys(s.val()||{}).forEach(r=>{
+      roomList.innerHTML+=`<li>${r}<button onclick="joinRoomName('${r}')">Join</button></li>`;
+    });
+  });
+}
+function joinRoomName(r){ rpgRoom=r; showRPG(); }
+
+/* RPG */
+function showRPG(){ hideAll(); rpgGame.style.display="block"; }
+function startRPG(){ saveRPG(); listenRPG(); updateRPG(); }
+
+function updateRPG(){
+  hpEl.innerText=hp;
+  coinsEl.innerText=coins;
+  xpEl.innerText=xp;
+  levelEl.innerText=level;
+  weaponEl.innerText=weapon;
+  rankScoreEl.innerText=(level*100)+coins+xp;
+
+  inventoryList.innerHTML="";
+  inventory.forEach(i=>inventoryList.innerHTML+=`<li>${i}</li>`);
+}
+
+/* GAME */
+function fight(){
+  hp-=Math.random()*10;
+  coins+=10;
+  xp+=10;
+  if(xp>=50){level++; xp=0;}
+  saveRPG(); updateRPG();
+}
+function earn(){ coins+=5; saveRPG(); updateRPG(); }
+
+/* PVP */
+function attackPlayer(){
+  let t=targetPlayer.value;
+  db.ref("rpgRooms/"+rpgRoom+"/players/"+t).once("value",s=>{
+    let e=s.val(); if(!e) return;
+    db.ref("rpgRooms/"+rpgRoom+"/players/"+t)
+      .update({hp:e.hp-10});
+  });
+}
+
+/* SHOP */
+function showShop(){ hideAll(); shop.style.display="block"; }
+function buyItem(i,c){ if(coins>=c){coins-=c; inventory.push(i);} updateRPG(); saveRPG();}
+function equipWeapon(){ if(inventory.includes("Sword")) weapon="Sword"; }
+
+/* FRIENDS */
+function showFriends(){ hideAll(); friendsBox.style.display="block"; loadFriends();}
+function sendRequest(){ db.ref("friends/"+friendName.value+"/"+currentUser).set(true); }
+function loadFriends(){
+  db.ref("friends/"+currentUser).on("value",s=>{
+    friendsList.innerHTML="";
+    Object.keys(s.val()||{}).forEach(f=>{
+      friendsList.innerHTML+=`<li>${f}</li>`;
+    });
+  });
+}
+
+/* INVITES */
+function listenInvites(){}
+
+/* MULTIPLAYER */
+function listenRPG(){
+  db.ref("rpgRooms/"+rpgRoom+"/players").on("value",s=>{
+    let d=s.val()||{};
+    story.innerHTML="";
+    Object.keys(d).forEach(p=>{
+      story.innerHTML+=`${p} ❤️${d[p].hp}<br>`;
+    });
+  });
+}
+
+/* SAVE */
+function saveRPG(){
+  let rank=(level*100)+coins+xp;
+
+  db.ref("rpgRooms/"+rpgRoom+"/players/"+currentUser)
+    .set({hp,coins,xp,level,inventory,weapon,rank});
+
+  db.ref("globalRanking/"+currentUser)
+    .set({level,coins,xp,rank});
+}
+
+/* RANKING */
+function showRanking(){
+  hideAll();
+  rankingBox.style.display="block";
+
+  db.ref("globalRanking").on("value",s=>{
+    let d=s.val()||{};
+    rankingList.innerHTML="";
+    Object.keys(d).forEach(p=>{
+      rankingList.innerHTML+=`<li>${p} - ${d[p].rank}</li>`;
+    });
+  });
+}
+
+</script>
+
+</body>
+  </html>
