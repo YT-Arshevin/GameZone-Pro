@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameZone Pro + Admin</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+  text-align: center;
+}
+
+header {
+  background: #020617;
+  padding: 15px;
+}
+
+h1 { color: #22c55e; }
+
+.container { padding: 20px; }
+
+input {
+  padding: 10px;
+  margin: 10px;
+}
+
+button {
+  padding: 10px 20px;
+  margin: 10px;
+  background: #22c55e;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.box {
+  margin-top: 20px;
+  padding: 20px;
+  background: #1e293b;
+  border-radius: 10px;
+}
+
+ul { list-style: none; }
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>🎮 GameZone Pro</h1>
+</header>
+
+<div class="container">
+
+  <!-- LOGIN -->
+  <div id="loginBox">
+    <h2>User Login</h2>
+    <input id="username" placeholder="Enter username">
+    <button onclick="login()">Start</button>
+
+    <h3>Admin Login</h3>
+    <input id="adminPass" placeholder="Enter admin password">
+    <button onclick="adminLogin()">Login as Admin</button>
+  </div>
+
+  <!-- USER PANEL -->
+  <div id="main" style="display:none;">
+    <h2>Welcome, <span id="user"></span></h2>
+
+    <button onclick="showGame()">Play Game</button>
+    <button onclick="showLeaderboard()">Leaderboard</button>
+
+    <div id="game" class="box" style="display:none;">
+      <h3>🎯 Click Speed</h3>
+      <p>Score: <span id="score">0</span></p>
+      <button onclick="startGame()">Start</button>
+      <button onclick="clickMe()">Click!</button>
+    </div>
+
+    <div id="leaderboard" class="box" style="display:none;">
+      <h3>🏆 Leaderboard</h3>
+      <ul id="board"></ul>
+    </div>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div id="adminPanel" style="display:none;">
+    <h2>⚙️ Admin Panel</h2>
+
+    <button onclick="loadAdminData()">Refresh Data</button>
+    <button onclick="clearAll()">Clear Leaderboard</button>
+
+    <div class="box">
+      <ul id="adminBoard"></ul>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentUser = "";
+let score = 0;
+let playing = false;
+
+/* USER LOGIN */
+function login() {
+  const name = document.getElementById("username").value;
+  if (!name) return alert("Enter username");
+
+  currentUser = name;
+  document.getElementById("user").innerText = name;
+
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("main").style.display = "block";
+}
+
+/* ADMIN LOGIN */
+function adminLogin() {
+  const pass = document.getElementById("adminPass").value;
+
+  if (pass === "admin123") {
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("adminPanel").style.display = "block";
+    loadAdminData();
+  } else {
+    alert("Wrong password");
+  }
+}
+
+/* GAME */
+function showGame() {
+  document.getElementById("game").style.display = "block";
+  document.getElementById("leaderboard").style.display = "none";
+}
+
+function startGame() {
+  score = 0;
+  playing = true;
+  document.getElementById("score").innerText = score;
+
+  setTimeout(() => {
+    playing = false;
+    saveScore(score);
+    alert("Score: " + score);
+  }, 10000);
+}
+
+function clickMe() {
+  if (playing) {
+    score++;
+    document.getElementById("score").innerText = score;
+  }
+}
+
+/* SAVE SCORE */
+function saveScore(score) {
+  let data = JSON.parse(localStorage.getItem("scores")) || [];
+
+  data.push({ user: currentUser, score: score });
+
+  data.sort((a,b) => b.score - a.score);
+  data = data.slice(0, 10);
+
+  localStorage.setItem("scores", JSON.stringify(data));
+}
+
+/* USER LEADERBOARD */
+function showLeaderboard() {
+  document.getElementById("game").style.display = "none";
+  document.getElementById("leaderboard").style.display = "block";
+
+  let data = JSON.parse(localStorage.getItem("scores")) || [];
+  let board = document.getElementById("board");
+  board.innerHTML = "";
+
+  data.forEach(item => {
+    let li = document.createElement("li");
+    li.innerText = item.user + " - " + item.score;
+    board.appendChild(li);
+  });
+}
+
+/* ADMIN FUNCTIONS */
+function loadAdminData() {
+  let data = JSON.parse(localStorage.getItem("scores")) || [];
+  let board = document.getElementById("adminBoard");
+  board.innerHTML = "";
+
+  data.forEach((item, index) => {
+    let li = document.createElement("li");
+    li.innerHTML = item.user + " - " + item.score +
+      " <button onclick='deleteScore(" + index + ")'>Delete</button>";
+    board.appendChild(li);
+  });
+}
+
+function deleteScore(index) {
+  let data = JSON.parse(localStorage.getItem("scores")) || [];
+  data.splice(index, 1);
+  localStorage.setItem("scores", JSON.stringify(data));
+  loadAdminData();
+}
+
+function clearAll() {
+  localStorage.removeItem("scores");
+  loadAdminData();
+}
+</script>
+
+</body>
+  </html>
